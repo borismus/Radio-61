@@ -1,0 +1,150 @@
+<style>
+#container {width: 400px; font-family: sans-serif; color: white;}
+#overlay {display: none;}
+#album-art {width: 100%; margin: 0; padding: 0;}
+.paused {}
+
+#options-panel {display: none; position: absolute; right: 0; top: 30%; left: 0;}
+#options-wrap {margin: 10px;}
+
+#title {position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.5); text-align: center; font-size: 1.5em; cursor: pointer;}
+.button {cursor: pointer;}
+.button:hover {background: green;}
+.button:active {margin-top: 2px; background: green;}
+.tuned {font-weight: bold; color: lightgreen;}
+.column {float: left; width: 122px; padding: 5px; background: rgba(0,0,0,0.5);}
+
+.big {position: absolute; text-align: center; }
+#previous {left: 0; top: 0; width:96px; height:64px;}
+#previous .inner {width: 100%; height: 100%; background: url(previous.png);}
+#next {right: 0; top: 0; width:96px; height:64px;}
+#next .inner {width: 100%; height: 100%; background: url(next.png);}
+
+#playpause {top: 0; left: 176px; width: 64px; height: 64px;}
+#playpause.paused #play {display: block !important;}
+#playpause.paused #pause {display: none !important;}
+#playpause #play {display: none; width: 100%; height: 100%; background: url(play.png);}
+#playpause #pause {display: block; width: 100%; height: 100%; background: url(pause.png);}
+</style>
+
+<div id="container">
+  <img id="album-art" />
+  
+  <div id="overlay">
+    <div id="title"></div>
+    <div id="options-panel">    
+      <div id="options-wrap">
+        <div class="column">
+          <span onclick="javascript:changeStation('top')" class="button" id="top">top</span><br/>
+          <span onclick="javascript:changeStation('moods/remix')" class="button" id="remix">remix</span><br/>
+          <span onclick="javascript:changeStation('moods/party')" class="button" id="party">party</span><br/>
+          <span onclick="javascript:changeStation('moods/happy')" class="button" id="happy">happy</span><br/>
+        </div>
+
+        <div class="column" style="text-align: center">
+          <span onclick="javascript:changeStation('moods/trippy')" class="button" id="trippy">trippy</span><br/>
+          <span onclick="javascript:changeStation('moods/crazy')" class="button" id="crazy">crazy</span><br/>
+          <span onclick="javascript:changeStation('moods/smooth')" class="button" id="smooth">smooth</span><br/>
+          <span onclick="javascript:changeStation('moods/sad')" class="button" id="sad">sad</span><br/>
+        </div>
+
+        <div class="column" style="text-align: right">
+          <span onclick="javascript:changeStation('moods/rocky')" class="button" id="rocky">rocky</span><br/>
+          <span onclick="javascript:changeStation('moods/love')" class="button" id="love">love</span><br/>
+          <span onclick="javascript:changeStation('moods/funny')" class="button" id="funny">funny</span><br/>
+          <span onclick="javascript:changeStation('moods/covers')" class="button" id="covers">covers</span><br/>
+        </div>
+      </div>
+    </div>
+  
+    <div id="previous" class="big button">
+      <div class="inner"></div>
+    </div>
+    <div id="next" class="big button">
+      <div class="inner"></div>
+    </div>
+    <div id="playpause" class="big button">
+      <div id="play"></div>
+      <div id="pause"></div>
+    </div>  
+  </div>
+</div>
+
+<script src="jquery.min.js"></script>
+<script>
+var bkg = chrome.extension.getBackgroundPage();
+
+$(document).ready(function() {
+  
+  $('#previous').click(function() {
+    bkg.sendMessage('previous');
+    $('#playpause').removeClass('paused');
+    $('#options-panel').slideUp();
+    updateSongTimeout(500);
+  });
+
+  $('#next').click(function() {
+    bkg.sendMessage('next');
+    $('#playpause').removeClass('paused');
+    $('#options-panel').slideUp();
+    updateSongTimeout(500);
+  });
+  
+  $('#playpause').click(function() {
+    $(this).hasClass('paused') ? bkg.sendMessage('play') : bkg.sendMessage('pause');
+    $(this).toggleClass('paused');
+    
+    $('#options-panel').slideToggle();
+  });
+  
+  $('#container').hover(
+    function() { $('#overlay').fadeIn(200); },
+    function() { $('#overlay').fadeOut(200); })
+  
+  updateSong();
+  updateStation();
+  
+  // if nothing is playing, start the radio
+  if (!bkg.isPlaying()) {
+    changeStation('top');
+  }
+});
+function updateSongTimeout(timeout) {
+  setTimeout(updateSong, timeout);
+}
+function updateSong() {
+  bkg.sendMessage('getSongInfo', function(songInfo) {
+    $('#album-art').attr('src', songInfo.imageUrl);
+    var songText = songInfo.artist + ' - ' + songInfo.title;
+    // Update the title 
+    $('#title').text(songText).click(function() {
+      chrome.tabs.create({url: songInfo.artistUrl});
+    });
+    // Update the extension tooltip
+    chrome.browserAction.setTitle({title: songText});
+    // Check if the song is paused
+    if (songInfo.paused) {
+      $('#playpause').addClass('paused');
+      $('#options-panel').show();
+    } else {
+      $('#playpause').removeClass('paused');
+      $('#options-panel').hide();
+    }
+  });
+}
+function updateStation() {
+  $('#options-wrap .button').removeClass('tuned');
+  $('#' + bkg.getStation()).addClass('tuned');
+}
+
+function changeStation(name) {
+  var url = 'http://www.thesixtyone.com/' + name;
+  bkg.changeStation(url);
+  updateStation();
+  // Hack: wait a bit for the station to change (this involves a re-injection 
+  // of inject.js) before issuing out any messages  
+  updateSongTimeout(1000);
+  $('#options-panel').slideToggle();
+  $('#playpause').removeClass('paused');
+}
+</script>

@@ -1,0 +1,31 @@
+<iframe id="t61"></iframe>
+
+<script>
+function sendMessage(message, callback) {
+  chrome.extension.sendRequest({message: message}, function(response) {
+    if (callback) {
+      callback(response.message);
+    }
+  });
+}
+
+function changeStation(url) {
+  document.getElementById('t61').src = url;
+}
+
+function getStation() {
+  var url = document.getElementById('t61').src;
+  var index = 'http://www.thesixtyone.com/'.length;
+  var name = url.substring(index);
+  if (name.length == 0) {
+    name = 'top';
+  } else if (name.indexOf('moods/') == 0) {
+    name = name.substring(6);
+  }
+  return name.length != 0 ? name : 'top';
+}
+
+function isPlaying() {
+  return document.getElementById('t61').src != '';
+}
+</script>
